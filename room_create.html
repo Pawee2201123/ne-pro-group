@@ -1,0 +1,37 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>ルーム作成 | ワードウルフ</title>
+    </head>
+    <body>
+         <header class="page-header-flex">
+            <p>ルームを作成する</p>
+        </header>
+    
+        <div class="write-box">
+            <p>部屋の詳細をご記入ください</p>
+            <label>部屋名</label>
+            <input type="text" name="roomname" required><br>
+            
+            <label>参加人数</label>
+            <input type="text" name="username" required><br>
+            
+            <label>狼の数</label>
+            <input type="text" name="wolfnum" required><br>
+
+            <label>ルームID</label>
+            <input type="text" name="roomID" required><br>
+            
+            <label>お題のジャンル</label>
+            <select id="genre" name="genre">
+                <option value="apple">りんご</option>
+                <option value="banana">バナナ</option>
+                <option value="cherry">さくらんぼ</option>
+            </select>
+
+            <div class="dbutton">
+                <button type="create" class="create" style="width:150px;">作成</button>
+            </div>
+        </div>
+    </body>
+</html>
