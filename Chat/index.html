@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Rust Real-time SSE Chat</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
+        #chat-box { height: 400px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; background: #fff; display: flex; flex-direction: column; }
+        .msg { border-bottom: 1px solid #eee; padding: 8px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        #input-area { display: flex; gap: 10px; margin-top: 10px; }
+        input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="chat-box"></div>
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="メッセージを入力してEnter..." onkeypress="if(event.key==='Enter')sendMessage()">
+        <button onclick="sendMessage()">送信</button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const messageInput = document.getElementById('message-input');
+
+        // --- SSE 接続の確立 ---
+        const eventSource = new EventSource('/events');
+
+        eventSource.onmessage = function(event) {
+            const newMsg = document.createElement('div');
+            newMsg.className = 'msg';
+            newMsg.textContent = event.data;
+            chatBox.appendChild(newMsg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+
+        eventSource.onerror = function() {
+            console.error("SSE Connection failed. Reconnecting...");
+        };
+
+        // メッセージ送信
+        async function sendMessage() {
+            const text = messageInput.value;
+            if (!text) return;
+            
+            messageInput.value = '';
+            await fetch('/send', {
+                method: 'POST',
+                body: text
+            });
+        }
+    </script>
+</body>
+</html>
