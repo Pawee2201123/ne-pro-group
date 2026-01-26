@@ -1,0 +1,13 @@
+C:\Users\kesig\github\ne-pro-group\Chat\target\debug\deps\quote-e1e6b30515fd72d9.d: C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\lib.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ext.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\format.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ident_fragment.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\to_tokens.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\runtime.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\spanned.rs
+
+C:\Users\kesig\github\ne-pro-group\Chat\target\debug\deps\libquote-e1e6b30515fd72d9.rlib: C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\lib.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ext.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\format.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ident_fragment.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\to_tokens.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\runtime.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\spanned.rs
+
+C:\Users\kesig\github\ne-pro-group\Chat\target\debug\deps\libquote-e1e6b30515fd72d9.rmeta: C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\lib.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ext.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\format.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ident_fragment.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\to_tokens.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\runtime.rs C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\spanned.rs
+
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\lib.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ext.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\format.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\ident_fragment.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\to_tokens.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\runtime.rs:
+C:\Rust\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\quote-1.0.44\src\spanned.rs:
