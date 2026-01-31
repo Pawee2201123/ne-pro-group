@@ -19,6 +19,7 @@ pub struct WordWolfGame {
     pub theme: String,
     pub submitted_keywords: HashMap<String, String>,
     pub assignments: HashMap<String, PlayerStatus>,
+    pub expected_players: usize,
 }
 
 impl WordWolfGame {
@@ -28,46 +29,47 @@ impl WordWolfGame {
             theme: String::new(),
             submitted_keywords: HashMap::new(),
             assignments: HashMap::new(),
+            expected_players: 0,
         }
     }
 
-    // ゲーム開始：お題を決める
-    pub fn start_theme_phase(&mut self) -> String {
-        let themes = vec!["フルーツ", "スポーツ", "都道府県", "学校にあるもの", "コンビニのおにぎり"];
+    // ゲーム開始
+    pub fn start_theme_phase(&mut self, players: usize) -> String {
+        let themes = vec!["フルーツ","スポーツ","都道府県","お菓子","ジュース","麺類","料理","文房具","家具","色","麺類","乗り物"];
         let mut rng = rand::thread_rng();
         self.theme = themes.choose(&mut rng).unwrap_or(&"食べ物").to_string();
         
         self.phase = GamePhase::ThemeSelection;
         self.submitted_keywords.clear();
         self.assignments.clear();
+        self.expected_players = players;
 
-        format!("【システム】ゲーム開始！お題は「{}」です。関連するキーワードを入力してください。", self.theme)
+        format!("【システム】ゲーム開始！(参加予定: {}人) お題は「{}」です。関連ワードを入力してください。", players, self.theme)
     }
 
-    // キーワードを受け取る
+    // キーワードを受け取る (重複チェック追加)
     pub fn submit_keyword(&mut self, player_id: String, keyword: String) -> String {
         if self.phase != GamePhase::ThemeSelection {
             return "【システム】現在はキーワード入力期間ではありません。".to_string();
         }
+
+        // 既に入力済みなら更新せずエラーを返す
+        if self.submitted_keywords.contains_key(&player_id) {
+            return "【エラー】キーワードは既に入力済みです。変更できません。".to_string();
+        }
         
         self.submitted_keywords.insert(player_id, keyword.trim().to_string());
-        format!("【システム】キーワード「{}」を受け付けました。（現在 {} 人）", keyword.trim(), self.submitted_keywords.len())
+        format!("【システム】キーワードを受け付けました。（現在 {}/{} 人）", self.submitted_keywords.len(), self.expected_players)
     }
 
     // 全員の入力が終わったか確認
-    pub fn check_ready_to_distribute(&self, player_count: usize) -> bool {
-        // 参加者数（接続数）と入力数が一致したら次へ
-        // ※検証用に「2人以上入力があればOK」とするなど調整可能
-        self.submitted_keywords.len() >= player_count && player_count >= 2
+    pub fn check_ready_to_distribute(&self) -> bool {
+        self.submitted_keywords.len() >= self.expected_players && self.expected_players >= 2
     }
 
-    // 役職とキーワードを配る
-    // src/game.rs の distribute_roles 関数全体をこれに置き換えてください
-
+    // 役職配布
     pub fn distribute_roles(&mut self) {
         let mut rng = rand::thread_rng();
-        
-        // 入力されたキーワードから2つ選ぶ
         let keywords: Vec<String> = self.submitted_keywords.values().cloned().collect();
         if keywords.len() < 2 { return; }
         
@@ -75,9 +77,7 @@ impl WordWolfGame {
         let citizen_word = &chosen_keywords[0];
         let wolf_word = &chosen_keywords[1];
 
-        // 誰をウルフにするか
         let player_ids: Vec<String> = self.submitted_keywords.keys().cloned().collect();
-        
         let wolf_id = player_ids.choose(&mut rng).unwrap().clone();
 
         for pid in player_ids {
@@ -90,7 +90,7 @@ impl WordWolfGame {
         }
         self.phase = GamePhase::GameStart;
     }
-    // プレイヤーごとの秘密のメッセージを取得
+
     pub fn get_secret_message(&self, player_id: &str) -> Option<String> {
         self.assignments.get(player_id).map(|status| {
             let role = if status.is_wolf { "ウルフ" } else { "市民" };

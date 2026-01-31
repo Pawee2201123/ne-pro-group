@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Rust Real-time SSE Chat</title>
+    <title>Rust WordWolf</title>
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 20px auto; }
         #chat-box { height: 400px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; background: #fff; display: flex; flex-direction: column; }
@@ -24,8 +24,17 @@
         const chatBox = document.getElementById('chat-box');
         const messageInput = document.getElementById('message-input');
 
-        // --- SSE 接続の確立 ---
-        const eventSource = new EventSource('/events');
+        // --- IDの生成と維持 ---
+        // ブラウザを閉じても維持したい場合は localStorage、タブごとなら sessionStorage
+        let myId = sessionStorage.getItem('wordwolf_id');
+        if (!myId) {
+            myId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+            sessionStorage.setItem('wordwolf_id', myId);
+        }
+        console.log("My ID:", myId);
+
+        // --- SSE 接続 (IDをURLパラメータで送る) ---
+        const eventSource = new EventSource('/events?id=' + myId);
 
         eventSource.onmessage = function(event) {
             const newMsg = document.createElement('div');
@@ -36,7 +45,7 @@
         };
 
         eventSource.onerror = function() {
-            console.error("SSE Connection failed. Reconnecting...");
+            console.error("SSE Connection failed.");
         };
 
         // メッセージ送信
@@ -45,9 +54,11 @@
             if (!text) return;
             
             messageInput.value = '';
+            
+            // IDを本文の1行目に含めて送る
             await fetch('/send', {
                 method: 'POST',
-                body: text
+                body: myId + "\n" + text
             });
         }
     </script>
