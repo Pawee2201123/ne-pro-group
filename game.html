@@ -148,12 +148,8 @@
 
                 document.getElementById('status-message').textContent = message;
 
-                // Check for voting phase (initial or new round)
-                if (message.includes('投票フェーズが始まりました') || message.includes('次のラウンド')) {
-                    // Reset voting state for new round
-                    hasVoted = false;
-                    selectedVoteTarget = null;
-
+                // Check for voting phase start
+                if (message.includes('投票フェーズが始まりました')) {
                     document.getElementById('voting-section').style.display = 'block';
                     document.getElementById('phase-message').textContent = '🗳️ 投票フェーズ: ワードウルフだと思う人に投票してください';
                     document.getElementById('timer-display').textContent = ''; // Hide timer
@@ -163,19 +159,8 @@
                     document.getElementById('confirm-vote-btn').disabled = true;
                     document.getElementById('confirm-vote-btn').textContent = '投票する';
 
-                    // Re-enable player cards and clear selection
-                    document.querySelectorAll('.player-card').forEach(card => {
-                        card.classList.remove('selected');
-                        if (!card.classList.contains('eliminated')) {
-                            card.style.cursor = 'pointer';
-                            card.style.opacity = '1';
-                        }
-                    });
-
-                    // Reload player list to reflect eliminations
-                    displayPlayers().then(() => {
-                        enableVotingOnPlayerList(); // Make player list clickable
-                    });
+                    // Make player list clickable for voting
+                    enableVotingOnPlayerList();
                 }
 
                 // Check for game over

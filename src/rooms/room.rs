@@ -244,6 +244,7 @@ impl Room {
     }
 
     /// Tally votes and eliminate player
+    /// 🎓 In Word Wolf, game ALWAYS ends after one vote!
     fn tally_votes(&mut self) -> Result<(), String> {
         let votes: Vec<crate::game::Vote> = self
             .votes
@@ -257,33 +258,41 @@ impl Room {
         let result = crate::game::rules::tally_votes(&votes)
             .ok_or("Failed to tally votes")?;
 
+        // Check if eliminated player was a wolf BEFORE eliminating
+        let eliminated_was_wolf = self
+            .players
+            .get(&result.eliminated_player)
+            .map(|p| p.is_wolf())
+            .unwrap_or(false);
+
         // Eliminate the player
         if let Some(player) = self.players.get_mut(&result.eliminated_player) {
             player.eliminate();
             self.broadcast(&format!(
-                "Player {} was eliminated with {} votes",
+                "{}さんが{}票で脱落しました",
                 result.eliminated_player, result.vote_count
             ));
         }
 
-        // Check for game over
+        // 🎓 WORD WOLF RULE: Game ALWAYS ends after one vote
+        // Citizens win if they eliminated a wolf, wolves win otherwise
+        let citizens_won = eliminated_was_wolf;
+
         let players_vec: Vec<Player> = self.players.values().cloned().collect();
-        if let Some(citizens_won) = crate::game::rules::is_game_over(&players_vec) {
-            let wolf_ids: Vec<PlayerId> = players_vec
-                .iter()
-                .filter(|p| p.is_wolf())
-                .map(|p| p.id().clone())
-                .collect();
+        let wolf_ids: Vec<PlayerId> = players_vec
+            .iter()
+            .filter(|p| p.is_wolf())
+            .map(|p| p.id().clone())
+            .collect();
 
-            self.state.transition_to_finished(citizens_won, wolf_ids)?;
+        self.state.transition_to_finished(citizens_won, wolf_ids)?;
 
-            let winner = if citizens_won { "Citizens" } else { "Wolves" };
-            self.broadcast(&format!("Game over! {} won!", winner));
+        let winner_msg = if citizens_won {
+            "ゲーム終了！市民の勝利です！ワードウルフを見つけました！"
         } else {
-            // Continue to next round - stay in Voting state, just clear votes
-            self.votes.clear();
-            self.broadcast("次のラウンド！再度投票してください。");
-        }
+            "ゲーム終了！ワードウルフの勝利です！市民を騙すことに成功しました！"
+        };
+        self.broadcast(winner_msg);
 
         Ok(())
     }
