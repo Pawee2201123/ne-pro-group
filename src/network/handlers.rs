@@ -128,10 +128,41 @@ fn handle_sse(req: HttpRequest, stream: TcpStream, room_manager: &RoomManager) {
     });
 }
 
+/// Generate a unique 6-character room ID
+fn generate_room_id(room_manager: &RoomManager) -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // Characters to use in room ID (excluding confusing ones like 0/O, 1/I)
+    const CHARS: &[u8] = b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    loop {
+        // Use timestamp + simple random for uniqueness
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        let mut id = String::new();
+        let mut seed = now;
+
+        for _ in 0..6 {
+            let idx = (seed % CHARS.len() as u128) as usize;
+            id.push(CHARS[idx] as char);
+            seed = seed.wrapping_mul(1103515245).wrapping_add(12345); // Simple LCG
+        }
+
+        // Check if this ID is already in use
+        if room_manager.get_room_state(&id).is_none() {
+            return id;
+        }
+        // If collision (rare), loop will try again with different timestamp
+    }
+}
+
 /// Create a new room
 fn handle_create_room(req: HttpRequest, room_manager: &RoomManager) -> String {
-    // Parse request body (simplified - in real app use JSON)
-    // Expected format: "room_id=abc&room_name=Test&max_players=5&wolf_count=1&genre=Food"
+    // Parse request body
+    // Expected format: "max_players=5&wolf_count=1&genre=Food&discussion_time=180"
     let params: Vec<&str> = req.body.split('&').collect();
     let mut map = std::collections::HashMap::new();
 
@@ -141,8 +172,9 @@ fn handle_create_room(req: HttpRequest, room_manager: &RoomManager) -> String {
         }
     }
 
-    let room_id = map.get("room_id").unwrap_or(&"").to_string();
-    let room_name = map.get("room_name").unwrap_or(&"Unnamed").to_string();
+    // Auto-generate a unique room ID
+    let room_id = generate_room_id(room_manager);
+
     let max_players: usize = map
         .get("max_players")
         .and_then(|s| s.parse().ok())
@@ -164,6 +196,8 @@ fn handle_create_room(req: HttpRequest, room_manager: &RoomManager) -> String {
         _ => ThemeGenre::Food,
     };
 
+    // Room name is no longer user-provided, use a simple format
+    let room_name = format!("Room {}", &room_id);
     let config = RoomConfig::new(room_name, max_players, wolf_count, genre, discussion_time);
 
     match room_manager.create_room(room_id.clone(), config) {
