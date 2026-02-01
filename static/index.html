@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WordWolf Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>ワードウルフ</h1>
+
+<!-- Waiting -->
+<div id="waiting" class="screen active">
+  <p>参加人数: <span id="playerCount">0</span></p>
+  <p>あなたのID: <span class="myId">未参加</span></p>
+  <button id="joinBtn" onclick="join()">部屋に参加する</button><br>
+  <br><button id="startBtn" onclick="startGame()">ゲーム開始する</button>
+
+  <div class="explanation-container">
+    <div class="explanation1">
+      <h2>ワードウルフとは</h2>
+      ワードウルフとは人狼と市民の２つの陣営に分かれて人狼は市民にばれないよう、
+      市民は人狼を見つけるゲームです。見つけるには議論する必要があります。<br>
+      お題は人狼と市民で別の２つのお題が配られます。<br>
+      テーマは一緒なのでちょっとした違いから市民を欺き、人狼を見つけてください。
+    </div>
+    <div class="explanation2">
+      <h2>言の葉狼</h2>
+      このゲームには時間制限と発言回数制限が設けられています。<br>
+      限られた時間と議論で短時間で濃密な議論をお楽しみください<br>
+    </div>
+    <div class="explanation3">
+      <h2>ゲームマスタ不要</h2>
+      ゲームに参加できない面白くない役職は言の葉狼が行います。<br>
+      皆様はゲームにのみ参加していただけます。<br>
+    </div>
+  </div>
+</div>
+
+<div id="themeSelection" class="screen">
+  <p>ジャンル: <span id="theme"></span></p>
+  <p>関連ワードを入力してください：</p>
+  <p>※ジャンルから離れ過ぎないものにしてください</p>
+  <input id="keywordInput" type="text" placeholder="キーワード">
+  <button id="submitKeywordBtn" onclick="submitKeyword()">送信</button>
+</div>
+
+<!-- Playing -->
+<div id="playing" class="screen">
+  <div class="left-header">
+    <p>あなたのID: <span class="myId">未参加</span></p>
+    <p>お題: <strong id="topic"></strong></p>
+  </div>
+  <div class="right-header">
+    <p>残り議論時間: <span id="gameTimer"></span> 秒</p>
+    <p>残り発言回数: <span id="remainingSpeak"></span></p>
+  </div>
+  <!-- チャット表示 -->
+  <h2>チャット</h2>
+  <div id="chatBox" style="height:150px;overflow:auto;border:1px solid #ccc"></div>
+  <!-- 発言ボタン -->
+  <div class="chat-controls">
+    <input id="chatInput" type="text" placeholder="発言を入力">
+    <button id="speakBtn" onclick="sendSpeak()">発言</button>
+  </div>
+</div>
+
+<!-- Voting -->
+<div id="voting" class="screen">
+  <p>あなたのID: <span class="myId">未参加</span></p><br>
+  <p>誰が人狼だと思いますか？</p>
+  <p>人狼だと思った人に投票してください</p>
+  <p>残り投票時間: <span id="voteTimer"></span> 秒</p>
+  <div id="voteButtons"></div>
+</div>
+
+<!-- Result -->
+<div id="result" class="screen">
+  <p>あなたのID: <span class="myId">未参加</span></p><br>
+  <p>最多投票: <strong id="executed"></strong></p>
+  <p>人狼: <strong id="wolf"></strong></p><br><br>
+  <h2 id="winner"></h2>
+
+  <button onclick="resetGame()">ホームに戻る</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
