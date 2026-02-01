@@ -1,19 +1,165 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>ルーム参加 | ワードウルフ</title>
+        <title>お題確認 | ワードウルフ</title>
+        <style>
+            .theme-box {
+                background: #f0f0f0;
+                border: 3px solid #333;
+                border-radius: 10px;
+                padding: 30px;
+                margin: 20px;
+                text-align: center;
+            }
+            .theme-text {
+                font-size: 48px;
+                font-weight: bold;
+                color: #333;
+                margin: 20px 0;
+            }
+            .warning {
+                color: #d32f2f;
+                font-weight: bold;
+                margin: 10px 0;
+            }
+        </style>
     </head>
     <body>
          <header class="page-header-flex">
-            <p>お題を募集致します</p>
-            <p>今回のゲームのジャンルは???です</p>
+            <p>あなたのお題が決まりました</p>
+            <p class="warning">⚠️ 他のプレイヤーに見せないでください！</p>
         </header>
-        
-        <label>お題をご記入ください</label>
-        <input type="text" name="theme" required>
+
+        <div class="theme-box">
+            <p>あなたのお題:</p>
+            <div class="theme-text" id="player-theme">読み込み中...</div>
+        </div>
+
+        <div id="role-hint" style="text-align: center; margin: 20px;">
+            <p id="role-message"></p>
+        </div>
 
         <div class="dbutton">
-            <button type="submit" class="decision" style="width:150px;">決定</button>
+            <button type="button" id="confirm-btn" class="decision" style="width:150px;" onclick="confirmTheme()">確認しました</button>
         </div>
+
+        <p id="status-message" style="text-align: center;"></p>
+
+        <script>
+            // Check login and room
+            const playerName = localStorage.getItem('player_name');
+            const playerId = localStorage.getItem('player_id');
+            const roomId = localStorage.getItem('room_id');
+
+            if (!playerName || !playerId || !roomId) {
+                window.location.href = 'login.html';
+            }
+
+            let playerTheme = null;
+            let playerRole = null;
+
+            // Connect to SSE for real-time updates
+            const eventSource = new EventSource(`/events?room_id=${encodeURIComponent(roomId)}`);
+
+            eventSource.onmessage = function(event) {
+                console.log('SSE message:', event.data);
+                const message = event.data;
+
+                document.getElementById('status-message').textContent = message;
+
+                // Check if all themes confirmed and moving to discussion
+                if (message.includes('Discussion begins') || message.includes('ディスカッション')) {
+                    setTimeout(() => {
+                        window.location.href = 'game.html';
+                    }, 1500);
+                }
+            };
+
+            eventSource.onerror = function() {
+                console.error('SSE connection error');
+            };
+
+            // Get player's assigned theme
+            async function loadTheme() {
+                try {
+                    const response = await fetch(`/player/theme?room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to get theme');
+                    }
+
+                    const data = await response.json();
+                    console.log('Player theme:', data);
+
+                    displayTheme(data.theme, data.role);
+
+                } catch (error) {
+                    console.error('Error loading theme:', error);
+                    document.getElementById('player-theme').textContent = 'エラーが発生しました';
+                    // Try again after a moment (theme might not be assigned yet)
+                    setTimeout(loadTheme, 1000);
+                }
+            }
+
+            function displayTheme(theme, role) {
+                playerTheme = theme;
+                playerRole = role;
+
+                document.getElementById('player-theme').textContent = theme;
+
+                // Show role hint (optional - might give away who's the wolf)
+                const roleMsg = document.getElementById('role-message');
+                if (role === 'Wolf' || role === 'ワードウルフ') {
+                    roleMsg.textContent = 'あなたは少数派です！他のプレイヤーとお題が違います。';
+                    roleMsg.style.color = '#d32f2f';
+                } else {
+                    roleMsg.textContent = 'みんなで話し合って、少数派を見つけましょう！';
+                    roleMsg.style.color = '#1976d2';
+                }
+            }
+
+            async function confirmTheme() {
+                const params = `room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}`;
+
+                try {
+                    const response = await fetch('/room/theme/confirm', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (response.ok) {
+                        document.getElementById('confirm-btn').textContent = '確認済み';
+                        document.getElementById('confirm-btn').disabled = true;
+                        document.getElementById('confirm-btn').style.backgroundColor = '#4CAF50';
+                        document.getElementById('status-message').textContent = '他のプレイヤーの確認を待っています...';
+                    } else {
+                        // If endpoint doesn't exist, just proceed
+                        console.log('Confirm endpoint not available, proceeding anyway');
+                        document.getElementById('status-message').textContent = 'まもなくディスカッションが始まります...';
+
+                        // Auto-navigate after a few seconds
+                        setTimeout(() => {
+                            window.location.href = 'game.html';
+                        }, 3000);
+                    }
+                } catch (error) {
+                    console.error('Error confirming theme:', error);
+                    // Fallback: just proceed to game
+                    setTimeout(() => {
+                        window.location.href = 'game.html';
+                    }, 2000);
+                }
+            }
+
+            // Load theme on page load
+            loadTheme();
+
+            // Clean up SSE on page leave
+            window.addEventListener('beforeunload', () => {
+                eventSource.close();
+            });
+        </script>
     </body>
 </html>

@@ -1,16 +1,107 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>ルーム参加 | ワードウルフ</title>
+        <title>待機中 | ワードウルフ</title>
     </head>
     <body>
          <header class="page-header-flex">
+            <p>ルームID: <span id="room-id"></span></p>
             <p>他の参加者の入室をお待ちしております</p>
-            <p>もうしばらくお待ちください</p>
         </header>
-        
-        <div class="dbutton">
-            <button type="submit" class="back" style="width:150px;">退室</button>
+
+        <div class="player-list">
+            <h3>参加者一覧:</h3>
+            <div id="players">
+                <p>接続中...</p>
+            </div>
         </div>
+
+        <div class="dbutton">
+            <button type="button" id="ready-btn" class="ready" style="width:150px;" onclick="markReady()">準備完了</button>
+            <button type="button" class="back" style="width:150px;" onclick="leaveRoom()">退室</button>
+        </div>
+
+        <p id="status-message"></p>
+
+        <script>
+            // Check if player is logged in and in a room
+            const playerName = localStorage.getItem('player_name');
+            const playerId = localStorage.getItem('player_id');
+            const roomId = localStorage.getItem('room_id');
+
+            if (!playerName || !playerId || !roomId) {
+                window.location.href = 'login.html';
+            }
+
+            document.getElementById('room-id').textContent = roomId;
+
+            let isReady = false;
+
+            // Connect to SSE for real-time updates
+            const eventSource = new EventSource(`/events?room_id=${encodeURIComponent(roomId)}`);
+
+            eventSource.onmessage = function(event) {
+                console.log('SSE message:', event.data);
+
+                const message = event.data;
+
+                // Display the message
+                const statusEl = document.getElementById('status-message');
+                statusEl.textContent = message;
+                statusEl.style.color = '#666';
+
+                // Check if game is starting
+                if (message.includes('Game started') || message.includes('ゲーム開始')) {
+                    setTimeout(() => {
+                        window.location.href = 'theme.html';
+                    }, 1000);
+                }
+            };
+
+            eventSource.onerror = function() {
+                console.error('SSE connection error');
+                document.getElementById('status-message').textContent = '接続エラーが発生しました';
+            };
+
+            async function markReady() {
+                if (isReady) return;
+
+                const params = `room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}`;
+
+                try {
+                    const response = await fetch('/room/ready', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (response.ok) {
+                        isReady = true;
+                        document.getElementById('ready-btn').textContent = '準備完了！';
+                        document.getElementById('ready-btn').disabled = true;
+                        document.getElementById('ready-btn').style.backgroundColor = '#4CAF50';
+                    } else {
+                        const error = await response.text();
+                        alert(error);
+                    }
+                } catch (error) {
+                    console.error('Error marking ready:', error);
+                    alert('サーバーエラーが発生しました');
+                }
+            }
+
+            function leaveRoom() {
+                eventSource.close();
+                localStorage.removeItem('room_id');
+                window.location.href = 'home.html';
+            }
+
+            // Close SSE connection when leaving page
+            window.addEventListener('beforeunload', () => {
+                eventSource.close();
+            });
+        </script>
     </body>
 </html>

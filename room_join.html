@@ -7,15 +7,70 @@
          <header class="page-header-flex">
             <p>ルームに参加する</p>
         </header>
-    
+
         <div class="write-box">
             <p>参加するルームIDをご記入ください</p>
             <label>ルームID</label>
-            <input type="text" name="roomID" required>
+            <input type="text" id="roomid" name="roomID" required>
 
             <div class="dbutton">
-                <button type="submit" class="join" style="width:150px;">参加</button>
+                <button type="button" class="join" style="width:150px;" onclick="handleJoinRoom()">参加</button>
             </div>
+            <p id="error-message" style="color: red;"></p>
         </div>
+
+        <script>
+            // Check if player is logged in
+            const playerName = localStorage.getItem('player_name');
+            const playerId = localStorage.getItem('player_id');
+            if (!playerName || !playerId) {
+                window.location.href = 'login.html';
+            }
+
+            async function handleJoinRoom() {
+                const roomId = document.getElementById('roomid').value.trim();
+
+                if (!roomId) {
+                    document.getElementById('error-message').textContent = 'ルームIDを入力してください';
+                    return;
+                }
+
+                // Join room via API
+                const params = `room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}&player_name=${encodeURIComponent(playerName)}`;
+
+                try {
+                    const response = await fetch('/room/join', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.text();
+                        document.getElementById('error-message').textContent = error;
+                        return;
+                    }
+
+                    // Store room ID
+                    localStorage.setItem('room_id', roomId);
+
+                    // Navigate to waiting room
+                    window.location.href = 'stay.html';
+
+                } catch (error) {
+                    console.error('Error joining room:', error);
+                    document.getElementById('error-message').textContent = 'サーバーエラーが発生しました';
+                }
+            }
+
+            // Allow Enter key to submit
+            document.getElementById('roomid').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleJoinRoom();
+                }
+            });
+        </script>
     </body>
 </html>

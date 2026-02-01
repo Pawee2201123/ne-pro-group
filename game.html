@@ -1,26 +1,473 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <title>推察パート | ワードウルフ</title>
+        <title>ゲーム進行中 | ワードウルフ</title>
+        <style>
+            .game-info {
+                background: #e3f2fd;
+                padding: 15px;
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .player-list {
+                margin: 20px;
+            }
+            .player-card {
+                background: #fff;
+                border: 2px solid #ccc;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 10px 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .player-card.selected {
+                border-color: #1976d2;
+                background: #e3f2fd;
+            }
+            .player-card.eliminated {
+                opacity: 0.5;
+                background: #f5f5f5;
+            }
+            .vote-btn {
+                padding: 10px 20px;
+                background: #1976d2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .vote-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .timer {
+                font-size: 24px;
+                font-weight: bold;
+                color: #d32f2f;
+            }
+            .phase-indicator {
+                padding: 10px;
+                background: #fff3e0;
+                border-left: 4px solid #ff9800;
+                margin: 10px;
+            }
+        </style>
     </head>
     <body>
          <header class="page-header-flex">
-            <div class="header-left">
-                <p>ジャンル:お題</p>
-            </div>
-            
-            <div class="header-right">
-
-            </div>
+            <h2>ワードウルフ - ゲーム中</h2>
         </header>
-    
-        <div class="write-box">
-            <p>ゲーム中に使用する名前をご記入ください</p>
-            <label>名前</label>
-            <input type="text" name="username" required>
-            <div class="dbutton">
-                <button type="submit" class="decision" style="width:150px;">決定</button>
+
+        <div class="game-info">
+            <p><strong>ルームID:</strong> <span id="room-id"></span></p>
+            <p><strong>あなたの名前:</strong> <span id="player-name"></span></p>
+            <p><strong>あなたのお題:</strong> <span id="player-theme"></span></p>
+        </div>
+
+        <div class="phase-indicator">
+            <p id="phase-message">📢 みんなで話し合って、少数派（ワードウルフ）を見つけましょう！</p>
+            <p id="timer-display" class="timer" style="font-size: 36px; margin: 10px 0;"></p>
+        </div>
+
+        <div id="chat-section" style="margin: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+            <h3>💬 チャット</h3>
+            <div id="chat-messages" style="height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #ddd;">
+                <p style="color: #999; text-align: center;">チャットはこちらに表示されます</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="chat-input" placeholder="メッセージを入力..." style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="sendChatMessage()" class="vote-btn" style="padding: 10px 20px;">送信</button>
             </div>
         </div>
+
+        <div class="player-list">
+            <h3 id="player-list-title">参加者一覧:</h3>
+            <div id="players-container">
+                <p>読み込み中...</p>
+            </div>
+        </div>
+
+        <div id="voting-section" style="display: none; text-align: center; margin: 20px;">
+            <button id="confirm-vote-btn" class="vote-btn" onclick="confirmVote()" disabled style="margin: 20px;">
+                投票する
+            </button>
+        </div>
+
+        <p id="status-message" style="text-align: center; margin: 20px; font-weight: bold;"></p>
+
+        <script>
+            // Check login and room
+            const playerName = localStorage.getItem('player_name');
+            const playerId = localStorage.getItem('player_id');
+            const roomId = localStorage.getItem('room_id');
+
+            if (!playerName || !playerId || !roomId) {
+                window.location.href = 'login.html';
+            }
+
+            document.getElementById('room-id').textContent = roomId;
+            document.getElementById('player-name').textContent = playerName;
+
+            let myTheme = '';
+            let selectedVoteTarget = null;
+            let hasVoted = false;
+
+            // Load player's theme
+            async function loadMyTheme() {
+                try {
+                    const response = await fetch(`/player/theme?room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        myTheme = data.theme;
+                        document.getElementById('player-theme').textContent = myTheme;
+                    }
+                } catch (error) {
+                    console.error('Error loading theme:', error);
+                }
+            }
+
+            // Connect to SSE for real-time updates
+            const eventSource = new EventSource(`/events?room_id=${encodeURIComponent(roomId)}`);
+
+            eventSource.onmessage = function(event) {
+                console.log('SSE message:', event.data);
+                const message = event.data;
+
+                // Check if it's a chat message
+                if (message.startsWith('CHAT|')) {
+                    const parts = message.split('|');
+                    if (parts.length >= 3) {
+                        const senderName = parts[1];
+                        const chatText = parts.slice(2).join('|'); // In case message contains |
+                        addChatMessage(senderName, chatText);
+                    }
+                    return; // Don't display chat in status
+                }
+
+                document.getElementById('status-message').textContent = message;
+
+                // Check for voting phase (initial or new round)
+                if (message.includes('投票フェーズが始まりました') || message.includes('次のラウンド')) {
+                    // Reset voting state for new round
+                    hasVoted = false;
+                    selectedVoteTarget = null;
+
+                    document.getElementById('voting-section').style.display = 'block';
+                    document.getElementById('phase-message').textContent = '🗳️ 投票フェーズ: ワードウルフだと思う人に投票してください';
+                    document.getElementById('timer-display').textContent = ''; // Hide timer
+                    document.getElementById('player-list-title').textContent = '投票: ワードウルフだと思う人をクリック';
+
+                    // Reset vote button
+                    document.getElementById('confirm-vote-btn').disabled = true;
+                    document.getElementById('confirm-vote-btn').textContent = '投票する';
+
+                    // Re-enable player cards and clear selection
+                    document.querySelectorAll('.player-card').forEach(card => {
+                        card.classList.remove('selected');
+                        if (!card.classList.contains('eliminated')) {
+                            card.style.cursor = 'pointer';
+                            card.style.opacity = '1';
+                        }
+                    });
+
+                    // Reload player list to reflect eliminations
+                    displayPlayers().then(() => {
+                        enableVotingOnPlayerList(); // Make player list clickable
+                    });
+                }
+
+                // Check for game over
+                if (message.includes('Game over') || message.includes('ゲーム終了')) {
+                    setTimeout(() => {
+                        showResults(message);
+                    }, 2000);
+                }
+            };
+
+            eventSource.onerror = function() {
+                console.error('SSE connection error');
+            };
+
+            function selectPlayerForVote(targetId, targetName, cardElement) {
+                if (hasVoted) return;
+
+                selectedVoteTarget = targetId;
+
+                // Update UI - highlight the selected player card
+                document.querySelectorAll('.player-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+
+                if (cardElement) {
+                    cardElement.classList.add('selected');
+                }
+
+                document.getElementById('confirm-vote-btn').disabled = false;
+                document.getElementById('status-message').textContent = `${targetName}さんを選択中...`;
+            }
+
+            async function confirmVote() {
+                if (!selectedVoteTarget || hasVoted) return;
+
+                const params = `room_id=${encodeURIComponent(roomId)}&voter_id=${encodeURIComponent(playerId)}&target_id=${encodeURIComponent(selectedVoteTarget)}`;
+
+                try {
+                    const response = await fetch('/room/vote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (response.ok) {
+                        hasVoted = true;
+                        document.getElementById('confirm-vote-btn').disabled = true;
+                        document.getElementById('confirm-vote-btn').textContent = '投票完了';
+                        document.getElementById('status-message').textContent = '投票しました。結果を待っています...';
+
+                        // Disable further clicking on player cards
+                        document.querySelectorAll('.player-card').forEach(card => {
+                            card.style.cursor = 'not-allowed';
+                            card.style.opacity = '0.6';
+                        });
+                    } else {
+                        const error = await response.text();
+                        alert(error);
+                    }
+                } catch (error) {
+                    console.error('Error voting:', error);
+                    alert('サーバーエラーが発生しました');
+                }
+            }
+
+            async function startVoting() {
+                // Call backend to transition to voting phase
+                const params = `room_id=${encodeURIComponent(roomId)}`;
+
+                try {
+                    const response = await fetch('/room/start-vote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (response.ok) {
+                        // Backend will broadcast "Voting phase started!" via SSE
+                        // The SSE handler will update the UI for all players
+                        document.getElementById('status-message').textContent = '投票フェーズを開始しました...';
+                    } else {
+                        const error = await response.text();
+                        alert(`投票開始エラー: ${error}`);
+                    }
+                } catch (error) {
+                    console.error('Error starting vote:', error);
+                    alert('サーバーエラーが発生しました');
+                }
+            }
+
+            function enableVotingOnPlayerList() {
+                // Make all player cards in 参加者一覧 clickable for voting
+                const playerCards = document.querySelectorAll('.player-card:not(.eliminated)');
+
+                playerCards.forEach(card => {
+                    const targetId = card.dataset.playerId;
+                    const targetName = card.dataset.playerName;
+
+                    // Add visual feedback
+                    card.style.cursor = 'pointer';
+                    card.style.transition = 'all 0.2s';
+
+                    // Add hover effect
+                    card.addEventListener('mouseenter', function() {
+                        if (!hasVoted && !card.classList.contains('selected')) {
+                            card.style.backgroundColor = '#f5f5f5';
+                        }
+                    });
+
+                    card.addEventListener('mouseleave', function() {
+                        if (!card.classList.contains('selected')) {
+                            card.style.backgroundColor = '';
+                        }
+                    });
+
+                    // Add click handler for voting
+                    card.addEventListener('click', () => {
+                        selectPlayerForVote(targetId, targetName, card);
+                    });
+                });
+            }
+
+            function showResults(message) {
+                // Simple results display
+                alert(message);
+
+                // Navigate back to home
+                setTimeout(() => {
+                    localStorage.removeItem('room_id');
+                    window.location.href = 'home.html';
+                }, 3000);
+            }
+
+            // Load player list from backend
+            async function displayPlayers() {
+                try {
+                    const response = await fetch(`/room/players?room_id=${encodeURIComponent(roomId)}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to get players');
+                    }
+
+                    const players = await response.json();
+                    const container = document.getElementById('players-container');
+
+                    if (players.length === 0) {
+                        container.innerHTML = '<p>プレイヤーが見つかりません</p>';
+                        return;
+                    }
+
+                    // Display all players
+                    container.innerHTML = players.map(player => {
+                        const isMe = player.id === playerId;
+                        const isEliminated = player.alive === false;
+                        const classes = ['player-card'];
+                        if (isEliminated) classes.push('eliminated');
+
+                        return `
+                            <div class="${classes.join(' ')}"
+                                 id="player-${player.id}"
+                                 data-player-id="${player.id}"
+                                 data-player-name="${player.name}">
+                                <div>
+                                    <strong>${player.name}</strong> ${isMe ? '(あなた)' : ''}
+                                    ${isEliminated ? '💀 脱落' : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                } catch (error) {
+                    console.error('Error loading players:', error);
+                    document.getElementById('players-container').innerHTML = '<p>プレイヤー情報の読み込みに失敗しました</p>';
+                }
+            }
+
+            // Chat functions
+            function addChatMessage(senderName, messageText) {
+                const chatBox = document.getElementById('chat-messages');
+
+                // Remove placeholder if it exists
+                const placeholder = chatBox.querySelector('p[style*="color: #999"]');
+                if (placeholder) {
+                    placeholder.remove();
+                }
+
+                const messageDiv = document.createElement('div');
+                messageDiv.style.marginBottom = '8px';
+                messageDiv.style.padding = '8px';
+                messageDiv.style.borderRadius = '4px';
+
+                const isMe = senderName === playerName;
+                if (isMe) {
+                    messageDiv.style.backgroundColor = '#e3f2fd';
+                    messageDiv.style.textAlign = 'right';
+                } else {
+                    messageDiv.style.backgroundColor = '#f5f5f5';
+                }
+
+                const nameSpan = document.createElement('strong');
+                nameSpan.textContent = senderName + ': ';
+                nameSpan.style.color = isMe ? '#1976d2' : '#333';
+
+                const textSpan = document.createElement('span');
+                textSpan.textContent = messageText;
+
+                messageDiv.appendChild(nameSpan);
+                messageDiv.appendChild(textSpan);
+                chatBox.appendChild(messageDiv);
+
+                // Auto-scroll to bottom
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            async function sendChatMessage() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+
+                if (!message) return;
+
+                const params = `room_id=${encodeURIComponent(roomId)}&player_name=${encodeURIComponent(playerName)}&message=${encodeURIComponent(message)}`;
+
+                try {
+                    const response = await fetch('/room/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (response.ok) {
+                        input.value = ''; // Clear input
+                    } else {
+                        console.error('Failed to send message');
+                    }
+                } catch (error) {
+                    console.error('Error sending chat:', error);
+                }
+            }
+
+            // Enter key support for chat
+            document.getElementById('chat-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+
+            // Timer polling function
+            async function updateTimer() {
+                try {
+                    const response = await fetch(`/room/timer?room_id=${encodeURIComponent(roomId)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.remaining !== null && data.remaining !== undefined) {
+                            const minutes = Math.floor(data.remaining / 60);
+                            const seconds = data.remaining % 60;
+                            document.getElementById('timer-display').textContent =
+                                `残り時間: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                            // Change color when time is running out
+                            const timerElement = document.getElementById('timer-display');
+                            if (data.remaining <= 30) {
+                                timerElement.style.color = '#d32f2f'; // Red
+                            } else if (data.remaining <= 60) {
+                                timerElement.style.color = '#ff9800'; // Orange
+                            } else {
+                                timerElement.style.color = '#333'; // Default
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching timer:', error);
+                }
+            }
+
+            // Poll timer every second
+            const timerInterval = setInterval(updateTimer, 1000);
+
+            // Initialize
+            loadMyTheme();
+            displayPlayers();
+            updateTimer(); // Initial timer fetch
+
+            // Clean up SSE and timer on page leave
+            window.addEventListener('beforeunload', () => {
+                eventSource.close();
+                clearInterval(timerInterval);
+            });
+        </script>
     </body>
 </html>

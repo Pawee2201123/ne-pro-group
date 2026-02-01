@@ -7,31 +7,134 @@
          <header class="page-header-flex">
             <p>ルームを作成する</p>
         </header>
-    
+
         <div class="write-box">
             <p>部屋の詳細をご記入ください</p>
             <label>部屋名</label>
-            <input type="text" name="roomname" required><br>
-            
+            <input type="text" id="roomname" name="roomname" required><br>
+
             <label>参加人数</label>
-            <input type="text" name="username" required><br>
-            
+            <input type="number" id="maxplayers" name="maxplayers" min="3" max="10" value="4" required><br>
+
             <label>狼の数</label>
-            <input type="text" name="wolfnum" required><br>
+            <input type="number" id="wolfnum" name="wolfnum" min="1" max="1" value="1" required>
+            <span id="wolf-hint" style="font-size: 12px; color: #666;"></span><br>
+
+            <label>ディスカッション時間</label>
+            <select id="discussiontime" name="discussiontime">
+                <option value="120">2分</option>
+                <option value="180" selected>3分</option>
+                <option value="240">4分</option>
+                <option value="300">5分</option>
+            </select><br>
 
             <label>ルームID</label>
-            <input type="text" name="roomID" required><br>
-            
+            <input type="text" id="roomid" name="roomID" required><br>
+
             <label>お題のジャンル</label>
             <select id="genre" name="genre">
-                <option value="apple">りんご</option>
-                <option value="banana">バナナ</option>
-                <option value="cherry">さくらんぼ</option>
+                <option value="Food">食べ物</option>
+                <option value="Animal">動物</option>
+                <option value="Place">場所</option>
+                <option value="Object">物</option>
             </select>
 
             <div class="dbutton">
-                <button type="create" class="create" style="width:150px;">作成</button>
+                <button type="button" class="create" style="width:150px;" onclick="handleCreateRoom()">作成</button>
             </div>
+            <p id="error-message" style="color: red;"></p>
         </div>
+
+        <script>
+            // Check if player is logged in
+            const playerName = localStorage.getItem('player_name');
+            const playerId = localStorage.getItem('player_id');
+            if (!playerName || !playerId) {
+                window.location.href = 'login.html';
+            }
+
+            // Update wolf count max based on player count
+            function updateWolfCountMax() {
+                const maxPlayers = parseInt(document.getElementById('maxplayers').value) || 4;
+                const wolfInput = document.getElementById('wolfnum');
+                const wolfHint = document.getElementById('wolf-hint');
+
+                // Calculate max wolves: (max_players - 1) / 2
+                const maxWolves = Math.floor((maxPlayers - 1) / 2);
+                wolfInput.max = maxWolves;
+
+                // Adjust current value if it exceeds max
+                if (parseInt(wolfInput.value) > maxWolves) {
+                    wolfInput.value = maxWolves;
+                }
+
+                wolfHint.textContent = `（最大${maxWolves}人）`;
+            }
+
+            // Initialize and add listener
+            updateWolfCountMax();
+            document.getElementById('maxplayers').addEventListener('input', updateWolfCountMax);
+
+            async function handleCreateRoom() {
+                const roomName = document.getElementById('roomname').value.trim();
+                const maxPlayers = parseInt(document.getElementById('maxplayers').value);
+                const wolfCount = parseInt(document.getElementById('wolfnum').value);
+                const roomId = document.getElementById('roomid').value.trim();
+                const genre = document.getElementById('genre').value;
+                const discussionTime = parseInt(document.getElementById('discussiontime').value);
+
+                // Validation
+                if (!roomName || !roomId) {
+                    document.getElementById('error-message').textContent = '全ての項目を入力してください';
+                    return;
+                }
+
+                const maxAllowedWolves = Math.floor((maxPlayers - 1) / 2);
+                if (wolfCount > maxAllowedWolves) {
+                    document.getElementById('error-message').textContent =
+                        `${maxPlayers}人部屋では最大${maxAllowedWolves}人のワードウルフまでです`;
+                    return;
+                }
+
+                // Create room via API
+                const params = `room_id=${encodeURIComponent(roomId)}&room_name=${encodeURIComponent(roomName)}&max_players=${maxPlayers}&wolf_count=${wolfCount}&genre=${genre}&discussion_time=${discussionTime}`;
+
+                try {
+                    const response = await fetch('/room/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.text();
+                        document.getElementById('error-message').textContent = error;
+                        return;
+                    }
+
+                    // Store room ID
+                    localStorage.setItem('room_id', roomId);
+
+                    // Join the room as the creator
+                    const joinParams = `room_id=${encodeURIComponent(roomId)}&player_id=${encodeURIComponent(playerId)}&player_name=${encodeURIComponent(playerName)}`;
+                    await fetch('/room/join', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: joinParams
+                    });
+
+                    // Navigate to waiting room
+                    window.location.href = 'stay.html';
+
+                } catch (error) {
+                    console.error('Error creating room:', error);
+                    document.getElementById('error-message').textContent = 'サーバーエラーが発生しました';
+                }
+            }
+        </script>
     </body>
 </html>

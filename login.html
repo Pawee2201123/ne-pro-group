@@ -7,14 +7,45 @@
          <header class="page-header-flex">
             <p>ワードウルフ受付</p>
         </header>
-    
+
         <div class="write-box">
             <p>ゲーム中に使用する名前を記入ください</p>
             <label>名前</label>
-            <input type="text" name="username" required>
+            <input type="text" id="username" name="username" required>
             <div class="dbutton">
-                <button type="submit" class="decision" style="width:150px;">決定</button>
+                <button type="submit" class="decision" style="width:150px;" onclick="handleLogin()">決定</button>
             </div>
         </div>
+
+        <script>
+            // Handle login button click
+            function handleLogin() {
+                const username = document.getElementById('username').value.trim();
+
+                if (!username) {
+                    alert('名前を入力してください');
+                    return;
+                }
+
+                // Generate a unique player ID
+                const playerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+                // Store player info in localStorage
+                localStorage.setItem('player_id', playerId);
+                localStorage.setItem('player_name', username);
+
+                console.log('Logged in as:', username, 'ID:', playerId);
+
+                // Navigate to home page
+                window.location.href = 'home.html';
+            }
+
+            // Allow Enter key to submit
+            document.getElementById('username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+        </script>
     </body>
 </html>
